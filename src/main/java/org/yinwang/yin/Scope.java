@@ -154,6 +154,8 @@ public class Scope {
         init.putValue("or", new Or());
         init.putValue("not", new Not());
 
+        init.putValue("print", new Print());
+
         init.putValue("true", new BoolValue(true));
         init.putValue("false", new BoolValue(false));
 
@@ -238,7 +240,7 @@ public class Scope {
     public String toString() {
         StringBuffer sb = new StringBuffer();
         for (String name : table.keySet()) {
-            sb.append(Constants.ARRAY_BEGIN).append(name).append(" ");
+            sb.append(Constants.SQUARE_BEGIN).append(name).append(" ");
             for (Map.Entry<String, Object> e : table.get(name).entrySet()) {
                 sb.append(":" + e.getKey() + " " + e.getValue());
             }

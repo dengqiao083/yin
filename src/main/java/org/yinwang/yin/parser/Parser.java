@@ -10,9 +10,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+
+/**
+ * Parser
+ * parse S-expression-like structure into more structured data
+ * with Classes, fields etc that can be easily accessed
+ */
 public class Parser {
 
-    public static Node parse(String file) {
+    public static Node parse(String file) throws ParserException {
         PreParser preparser = new PreParser(file);
         Node prenode = preparser.parse();
         Node grouped = groupAttr(prenode);
@@ -40,18 +46,19 @@ public class Parser {
             Tuple tuple = ((Tuple) prenode);
             List<Node> elements = tuple.elements;
 
-            if (elements.isEmpty()) {
-                _.abort(tuple, "syntax error");
-            }
-
-            if (delimType(tuple.open, Constants.RECORD_BEGIN)) {
+            if (delimType(tuple.open, Constants.CURLY_BEGIN)) {
                 return new RecordLiteral(parseList(elements), tuple.file, tuple.start, tuple.end, tuple.line,
                         tuple.col);
             }
 
-            if (delimType(tuple.open, Constants.ARRAY_BEGIN)) {
+            if (delimType(tuple.open, Constants.SQUARE_BEGIN)) {
                 return new VectorLiteral(parseList(elements), tuple.file, tuple.start, tuple.end, tuple.line,
                         tuple.col);
+            }
+
+            // (...) form must be non-empty
+            if (elements.isEmpty()) {
+                _.abort(tuple, "syntax error");
             }
 
             Node keyNode = elements.get(0);
@@ -73,6 +80,8 @@ public class Parser {
                         Node alter = parseNode(elements.get(3));
                         return new If(test, conseq, alter, prenode.file, prenode.start, prenode.end, prenode.line,
                                 prenode.col);
+                    } else {
+                        _.abort(tuple, "incorrect format of if");
                     }
                 }
 
@@ -191,7 +200,7 @@ public class Parser {
 
                     // check if there are parents (record A (B C) ...)
                     if (maybeParents instanceof Tuple &&
-                            delimType(((Tuple) maybeParents).open, Constants.TUPLE_BEGIN))
+                            delimType(((Tuple) maybeParents).open, Constants.PAREN_BEGIN))
                     {
                         List<Node> parentNodes = ((Tuple) maybeParents).elements;
                         parents = new ArrayList<>();
@@ -259,7 +268,7 @@ public class Parser {
         Scope properties = new Scope();
         for (Node field : fields) {
             if (field instanceof Tuple &&
-                    delimType(((Tuple) field).open, Constants.ARRAY_BEGIN))
+                    delimType(((Tuple) field).open, Constants.SQUARE_BEGIN))
             {
                 List<Node> elements = parseList(((Tuple) field).elements);
                 if (elements.size() < 2) {
@@ -337,7 +346,7 @@ public class Parser {
     }
 
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ParserException {
         Node tree = Parser.parse(args[0]);
         _.msg(tree.toString());
     }
