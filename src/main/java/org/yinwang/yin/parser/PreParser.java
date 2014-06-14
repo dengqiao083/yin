@@ -1,7 +1,7 @@
 package org.yinwang.yin.parser;
 
 import org.yinwang.yin.Constants;
-import org.yinwang.yin._;
+import org.yinwang.yin.Util;
 import org.yinwang.yin.ast.Delimeter;
 import org.yinwang.yin.ast.Name;
 import org.yinwang.yin.ast.Node;
@@ -19,13 +19,11 @@ import java.util.List;
 public class PreParser {
 
     String file;
-    String text;
     Lexer lexer;
 
 
     public PreParser(String file) {
-        this.file = _.unifyPath(file);
-        this.text = _.readFile(file);
+        this.file = Util.unifyPath(file);
         this.lexer = new Lexer(file);
     }
 
@@ -53,22 +51,23 @@ public class PreParser {
 
         if (Delimeter.isOpen(first)) {   // try to get matched (...)
             List<Node> elements = new ArrayList<>();
-            Node next = nextNode1(depth + 1);
-
-            while (!Delimeter.matchDelimeter(first, next)) {
+            Node next;
+            for (next = nextNode1(depth + 1);
+                 !Delimeter.match(first, next);
+                 next = nextNode1(depth + 1))
+            {
                 if (next == null) {
-                    throw new ParserException("unclosed delimeter: " + first, first);
+                    throw new ParserException("unclosed delimeter till end of file: " + first.toString(), first);
                 } else if (Delimeter.isClose(next)) {
-                    throw new ParserException("unmatched closing delimeter: " + next +
-                            " does not close: " + first, next);
+                    throw new ParserException("unmatched closing delimeter: " +
+                            next.toString() + " does not close " + first.toString(), next);
                 } else {
                     elements.add(next);
-                    next = nextNode1(depth + 1);
                 }
             }
             return new Tuple(elements, first, next, first.file, first.start, next.end, first.line, first.col);
         } else if (depth == 0 && Delimeter.isClose(first)) {
-            throw new ParserException("unmatched closing delimeter: " + first +
+            throw new ParserException("unmatched closing delimeter: " + first.toString() +
                     " does not close any open delimeter", first);
         } else {
             return first;
@@ -86,23 +85,27 @@ public class PreParser {
         elements.add(Name.genName(Constants.SEQ_KEYWORD));      // synthetic block keyword
 
         Node s = nextNode();
-        while (s != null) {
+        Node first = s;
+        Node last = null;
+        for (; s != null; last = s, s = nextNode()) {
             elements.add(s);
-            s = nextNode();
         }
 
         return new Tuple(
                 elements,
                 Name.genName(Constants.PAREN_BEGIN),
                 Name.genName(Constants.PAREN_END),
-                file, 0, text.length(), 0, 0
+                file,
+                first == null ? 0 : first.start,
+                last == null ? 0 : last.end,
+                0, 0
         );
     }
 
 
     public static void main(String[] args) throws ParserException {
         PreParser p = new PreParser(args[0]);
-        _.msg("preparser result: " + p.parse());
+        Util.msg("preparser result: " + p.parse());
     }
 
 }
